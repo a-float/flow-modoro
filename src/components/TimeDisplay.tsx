@@ -18,13 +18,14 @@ const TimeDisplay: React.FC<TimeDisplayProps> = (props: TimeDisplayProps) => {
 };
 
 const Milis = styled.span`
-  font-size: 1.1rem;
+  font-size: 2rem;
   color: #666;
 `;
 
 const Time = styled.div<{ $overdue: boolean }>`
-  font-size: 2rem;
-  line-height: 2rem;
+  margin-top: 2rem;
+  font-size: 6rem;
+  line-height: 6rem;
   margin-bottom: 1rem;
   &,
   * {

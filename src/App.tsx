@@ -1,15 +1,18 @@
 import dayjs from "dayjs";
 import React from "react";
 import "semantic-ui-css/semantic.min.css";
-import { Accordion, Button, Container, Header, Input } from "semantic-ui-react";
+import { Accordion, Button, Container, Input } from "semantic-ui-react";
 import styled from "styled-components";
 import customParseFormat from "dayjs/plugin/customParseFormat";
+import isToday from "dayjs/plugin/isToday";
 import Navbar from "./components/Navbar";
 import useLocalStorage from "./hooks/useLocalStorage";
 import TimeAccordionContent from "./components/TimeAccordionItem";
 import TimeControl from "./components/TimeControl";
 import TaskConfigModal from "./components/TaskConfigModal";
 import { generateId } from "./utils";
+import DayStats from "./components/DayStats";
+dayjs.extend(isToday);
 dayjs.extend(customParseFormat);
 
 const DEFAULT_COLOR = "white";
@@ -40,7 +43,6 @@ function App() {
   const [tasks, setTasks] = useLocalStorage<Record<number, Task>>("tasks", {});
   const [activeId, setActiveId] = React.useState(-1);
   const [editedTaskId, setEditedTaskId] = React.useState(-1);
-  console.log(editedTaskId);
 
   const handleToggle = (taskId: number) => () => {
     setOpenId((p) => (p === taskId ? -1 : taskId));
@@ -70,7 +72,43 @@ function App() {
       <Navbar />
       <StyledContainer>
         <Column>
-          <RightRow>
+          <BigRow>
+            <DayStats tasks={Object.values(tasks)} />
+            <CenterColumn>
+              <TimeControl
+                canStart={!!tasks[activeId]}
+                mode={mode}
+                options={options}
+                setMode={setMode}
+                onFocusEnd={(item) =>
+                  tasks[activeId] &&
+                  setTasks((prev) => ({
+                    ...prev,
+                    [activeId]: {
+                      ...prev[activeId],
+                      stretches: [...prev[activeId].stretches, { ...item }],
+                    },
+                  }))
+                }
+                onBreakEnd={(item) =>
+                  tasks[activeId] &&
+                  setTasks((prev) => {
+                    const last = prev[activeId].stretches.at(-1);
+                    if (!last) return prev;
+                    return {
+                      ...prev,
+                      [activeId]: {
+                        ...prev[activeId],
+                        stretches: [
+                          ...prev[activeId].stretches.slice(0, -1),
+                          { ...last, ...item },
+                        ],
+                      },
+                    };
+                  })
+                }
+              />
+            </CenterColumn>
             <Input
               label="Break divisor"
               type="number"
@@ -82,41 +120,7 @@ function App() {
                 }))
               }
             />
-          </RightRow>
-          <Header as="h1">🌊Flowmodoro🍅</Header>
-          <TimeControl
-            canStart={!!tasks[activeId]}
-            mode={mode}
-            options={options}
-            setMode={setMode}
-            onFocusEnd={(item) =>
-              tasks[activeId] &&
-              setTasks((prev) => ({
-                ...prev,
-                [activeId]: {
-                  ...prev[activeId],
-                  stretches: [...prev[activeId].stretches, { ...item }],
-                },
-              }))
-            }
-            onBreakEnd={(item) =>
-              tasks[activeId] &&
-              setTasks((prev) => {
-                const last = prev[activeId].stretches.at(-1);
-                if (!last) return prev;
-                return {
-                  ...prev,
-                  [activeId]: {
-                    ...prev[activeId],
-                    stretches: [
-                      ...prev[activeId].stretches.slice(0, -1),
-                      { ...last, ...item },
-                    ],
-                  },
-                };
-              })
-            }
-          />
+          </BigRow>
           <Row
             as="form"
             onSubmit={(e) => {
@@ -185,8 +189,13 @@ const Row = styled.div`
   display: flex;
 `;
 
-const RightRow = styled(Row)`
-  justify-content: flex-end;
+const BigRow = styled(Row)`
+  margin-top: 2rem;
+  min-height: 20vh;
+  display: grid;
+  grid-template-columns: 1fr 2fr 1fr;
+  align-items: flex-start;
+  margin-bottom: 2rem;
 `;
 
 const Column = styled.div`
@@ -195,10 +204,15 @@ const Column = styled.div`
   align-items: center;
 `;
 
+const CenterColumn = styled(Column)`
+  align-items: center;
+`;
+
 const StyledContainer = styled(Container)`
   && {
     display: flex;
     flex-direction: column;
+    padding-bottom: 2rem;
   }
 `;
 

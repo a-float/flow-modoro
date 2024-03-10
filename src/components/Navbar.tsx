@@ -6,6 +6,8 @@ const Navbar = () => {
       <MenuItem name="tasks">
         <Icon name="tasks" />
       </MenuItem>
+      <MenuItem name="title">🌊Flowmodoro🍅</MenuItem>
+
       <MenuItem name="settings" position="right">
         <Icon name="cog" />
       </MenuItem>
