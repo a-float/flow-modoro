@@ -1,5 +1,5 @@
 import React from "react";
-import { AppOptions, PrevItem } from "../App";
+import { AppOptions, Stretch } from "../App";
 import useTimer from "../hooks/useTimer";
 import useStopwatch from "../hooks/useStopwatch";
 import { Button } from "semantic-ui-react";
@@ -11,9 +11,9 @@ type TimeControlProps = {
   options: AppOptions;
   setMode: (mode: "focus" | "break") => void;
   onFocusEnd: (
-    item: Pick<PrevItem, "focusBeginTime" | "focusDuration">
+    item: Pick<Stretch, "focusBeginTime" | "focusDuration">
   ) => void;
-  onBreakEnd: (item: Pick<PrevItem, "breakDelay" | "breakEndTime">) => void;
+  onBreakEnd: (item: Pick<Stretch, "breakDelay" | "breakEndTime">) => void;
 };
 
 const TimeControl: React.FC<TimeControlProps> = (props: TimeControlProps) => {

@@ -15,3 +15,5 @@ export const parseTime = (time: number) => {
     </>
   );
 };
+
+export const generateId = () => Date.now() + Math.random();

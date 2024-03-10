@@ -8,38 +8,65 @@ import Navbar from "./components/Navbar";
 import useLocalStorage from "./hooks/useLocalStorage";
 import TimeAccordionContent from "./components/TimeAccordionItem";
 import TimeControl from "./components/TimeControl";
+import TaskConfigModal from "./components/TaskConfigModal";
+import { generateId } from "./utils";
 dayjs.extend(customParseFormat);
+
+const DEFAULT_COLOR = "white";
 
 export type AppOptions = { breakDivisor: number };
 
-export type PrevItem = {
-  task: string;
+export type Stretch = {
   focusBeginTime: number;
   focusDuration: number;
   breakEndTime?: number;
   breakDelay?: number;
 };
 
+export type Task = {
+  id: ReturnType<typeof generateId>;
+  name: string;
+  color: string;
+  stretches: Stretch[];
+};
+
 function App() {
   const [mode, setMode] = React.useState<"focus" | "break">("focus");
-  const [activeIdx, setActiveIdx] = React.useState(-1);
-  const [history, setHistory] = useLocalStorage<PrevItem[]>("records", []);
-  const [task, setTask] = React.useState("");
+  const [openId, setOpenId] = React.useState(-1);
+  const [taskName, setTaskName] = React.useState("");
   const [options, setOptions] = useLocalStorage<AppOptions>("options", {
     breakDivisor: 5,
   });
-  const [tasks, setTasks] = useLocalStorage<string[]>("tasks", []);
+  const [tasks, setTasks] = useLocalStorage<Record<number, Task>>("tasks", {});
+  const [activeId, setActiveId] = React.useState(-1);
+  const [editedTaskId, setEditedTaskId] = React.useState(-1);
+  console.log(editedTaskId);
 
-  const groupedHistory = history.reduce(
-    (acc, item) => ({
-      ...acc,
-      [item.task]: [...(acc[item.task] ?? []), item],
-    }),
-    {} as Record<string, PrevItem[]>
-  );
+  const handleToggle = (taskId: number) => () => {
+    setOpenId((p) => (p === taskId ? -1 : taskId));
+    setActiveId(taskId);
+  };
 
   return (
     <>
+      <TaskConfigModal
+        open={editedTaskId >= 0}
+        closeModel={() => setEditedTaskId(-1)}
+        task={tasks[editedTaskId]}
+        onSave={(config) => {
+          if (!config) {
+            setActiveId(-1);
+            setOpenId(-1);
+            setEditedTaskId(-1);
+          }
+          setTasks((prev) => {
+            const old = { ...prev };
+            if (config) return { ...old, [editedTaskId]: config };
+            delete old[editedTaskId];
+            return old;
+          });
+        }}
+      />
       <Navbar />
       <StyledContainer>
         <Column>
@@ -58,57 +85,80 @@ function App() {
           </RightRow>
           <Header as="h1">🌊Flowmodoro🍅</Header>
           <TimeControl
-            canStart={!!(tasks.length && activeIdx >= 0)}
+            canStart={!!tasks[activeId]}
             mode={mode}
             options={options}
             setMode={setMode}
             onFocusEnd={(item) =>
-              setHistory((prev) => [
+              tasks[activeId] &&
+              setTasks((prev) => ({
                 ...prev,
-                {
-                  task: tasks[activeIdx],
-                  ...item,
+                [activeId]: {
+                  ...prev[activeId],
+                  stretches: [...prev[activeId].stretches, { ...item }],
                 },
-              ])
+              }))
             }
             onBreakEnd={(item) =>
-              setHistory((prev) => {
-                if (prev.length === 0) return prev;
-                const old = prev.slice(0, -1);
-                const last = prev[prev.length - 1];
-                return [...old, { ...last, ...item }];
+              tasks[activeId] &&
+              setTasks((prev) => {
+                const last = prev[activeId].stretches.at(-1);
+                if (!last) return prev;
+                return {
+                  ...prev,
+                  [activeId]: {
+                    ...prev[activeId],
+                    stretches: [
+                      ...prev[activeId].stretches.slice(0, -1),
+                      { ...last, ...item },
+                    ],
+                  },
+                };
               })
             }
           />
-
-          <Row>
-            <Input
+          <Row
+            as="form"
+            onSubmit={(e) => {
+              e.preventDefault();
+              if (!taskName) return;
+              setTasks((prev) => {
+                const id = generateId();
+                return {
+                  [id]: {
+                    id,
+                    name: taskName,
+                    color: DEFAULT_COLOR,
+                    stretches: [],
+                  },
+                  ...prev,
+                };
+              });
+              setTaskName("");
+            }}
+          >
+            <StyledInput
               label="Task"
-              onChange={(e) => setTask(e.target.value)}
-              value={task}
+              onChange={(e) => setTaskName(e.target.value)}
+              value={taskName}
             />
-            <Button
-              compact
-              onClick={() => {
-                if (!task) return;
-                setActiveIdx((prev) => prev + 1);
-                setTasks((prev) => [task, ...prev]);
-                setTask("");
-              }}
-            >
-              +
-            </Button>
+            <Button compact>+</Button>
           </Row>
-          {tasks.length > 0 && (
+          {Object.keys(tasks).length > 0 && (
             <StyledAccordion styled fluid>
-              {tasks.map((task, idx) => (
+              {Object.values(tasks).map((task, idx) => (
                 <TimeAccordionContent
+                  key={task.id}
                   index={idx}
-                  onToggle={() => setActiveIdx(idx)}
-                  setHistory={setHistory}
-                  taskName={task}
-                  active={activeIdx === idx}
-                  tasks={groupedHistory[task] ?? []}
+                  onToggle={handleToggle(task.id)}
+                  taskName={task.name}
+                  open={openId === task.id}
+                  active={activeId === task.id}
+                  task={task}
+                  updateTask={(task) =>
+                    setTasks((prev) => ({ ...prev, [task.id]: task }))
+                  }
+                  onEditTask={() => setEditedTaskId(task.id)}
                 />
               ))}
             </StyledAccordion>
@@ -118,6 +168,11 @@ function App() {
     </>
   );
 }
+
+const StyledInput: typeof Input = styled(Input)`
+  flex-grow: 1;
+  margin-right: 1rem;
+`;
 
 const StyledAccordion = styled(Accordion)`
   width: 100%;
